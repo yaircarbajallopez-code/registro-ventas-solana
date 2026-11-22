@@ -2,7 +2,7 @@ import { address, createNoopSigner, type Address } from '@solana/kit';
 import type { Connection } from '@solana/web3.js';
 import {
   getCrearRegistroInstruction, getCrearClienteInstruction,
-  getRegistrarVentaInstruction, getCambiarMontoInstruction, getHacerDevolucionInstruction,
+  getRegistrarVentaInstruction, getBajaClienteInstruction, getCambiarMontoInstruction, getHacerDevolucionInstruction,
 } from '../../clients/js/src/generated';
 import { cadena, pdaCliente, pdaRegistro } from './pdas';
 import { siguienteId } from './lecturas';
@@ -74,5 +74,16 @@ export async function hacerDevolucion(wallet: WalletFirma, connection: Connectio
   const owner = firmante(wallet);
   const { registro, cliente, venta } = cadena(nombreNegocio, owner.address, idCliente, sku);
   const ix = getHacerDevolucionInstruction({ owner, registro, cliente, venta, idCliente, sku });
+  return enviar(ix, wallet, connection, opciones);
+}
+
+/** Día 5: baja de cliente. El programa la rechaza si el cliente tiene ventas activas. */
+export async function bajaCliente(wallet: WalletFirma, connection: Connection, nombreNegocio: string, idCliente: number, opciones?: OpcionesEnvio): Promise<string> {
+  nombreNegocio = negocioValido(nombreNegocio);
+  idCliente = idValido(idCliente);
+  const owner = firmante(wallet);
+  const registro = pdaRegistro(nombreNegocio, owner.address);
+  const cliente = pdaCliente(registro, idCliente);
+  const ix = getBajaClienteInstruction({ owner, registro, cliente, idCliente });
   return enviar(ix, wallet, connection, opciones);
 }

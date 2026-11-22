@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./bajaCliente";
 export * from "./cambiarMonto";
 export * from "./crearCliente";
 export * from "./crearRegistro";

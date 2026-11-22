@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("");
+declare_id!("7dPZZDLYYy8uNb5mthSwwXrVaTDVUuLpJvi2JqFcYTb6");
 
 #[program]
 pub mod registro {
@@ -57,6 +57,9 @@ pub mod registro {
         descripcion: String,
         monto: u32,
     ) -> Result<()> {
+        // MEJORA PROPIA: una venta con monto 0 no tiene sentido de negocio, se rechaza.
+        require!(monto > 0, Errores::MontoInvalido);
+
         context.accounts.venta.set_inner(Venta {
             sku,
             descripcion,
@@ -115,6 +118,9 @@ pub mod registro {
         sku: String,
         nuevo_monto: u32,
     ) -> Result<()> {
+        // MEJORA PROPIA: el monto corregido tampoco puede ser 0.
+        require!(nuevo_monto > 0, Errores::MontoInvalido);
+
         let venta = &mut context.accounts.venta;
         let viejo_monto = venta.monto;
         venta.monto = nuevo_monto;
@@ -128,6 +134,30 @@ pub mod registro {
 
         Ok(())
     }
+
+    /////////////////////////// Baja de Cliente (Dia 5) ///////////////////////////
+    // El contexto BajaCliente lleva "close = owner": la cuenta del cliente se cierra al final
+    // y su rent vuelve al owner. Solo se permite si el cliente no tiene ventas activas.
+    // Si el require! falla, la transaccion se revierte y la cuenta NO se cierra.
+    pub fn baja_cliente(context: Context<BajaCliente>, _id_cliente: u16) -> Result<()> {
+        let cliente_key = context.accounts.cliente.key(); // Se lee ANTES del &mut de registro
+
+        let cliente = &context.accounts.cliente;
+
+        require!(
+            cliente.compras == 0 && cliente.historial.is_empty(),
+            Errores::ClienteConVentasActivas
+        );
+
+        let registro = &mut context.accounts.registro;
+
+        registro.clientes.retain(|&k| k != cliente_key); // Quita solo la referencia de este cliente
+        // id_counter NO retrocede: asi un id dado de baja nunca se reutiliza.
+
+        msg!("Cliente con id: {}, dado de baja", cliente.id_cliente);
+
+        Ok(())
+    }
 }
 
 /////////////////////////// Codigos de Error ///////////////////////////
@@ -137,6 +167,10 @@ pub enum Errores {
     NoOwner,
     #[msg("Error, la venta no esta en el historial del cliente")]
     NoSKU,
+    #[msg("Error, el cliente tiene ventas activas y no se puede dar de baja")]
+    ClienteConVentasActivas,
+    #[msg("Error, el monto debe ser mayor a cero")]
+    MontoInvalido,
 }
 
 /////////////////////////// CUENTAS ///////////////////////////
@@ -331,4 +365,25 @@ pub struct EliminarVenta<'info> {
         bump
     )]
     pub venta: Account<'info, Venta>,
+}
+
+/////////////////////////// Baja de Cliente ///////////////////////////
+/// Instruccion: baja_cliente -> cierra la cuenta del cliente
+
+#[derive(Accounts)]
+#[instruction(id_cliente: u16)]
+pub struct BajaCliente<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>, // mut: recibe el rent de la cuenta cerrada
+
+    #[account(mut, has_one = owner @ Errores::NoOwner)]
+    pub registro: Account<'info, Registro>, // mut: se retira la referencia del cliente
+
+    #[account(
+        mut,
+        close = owner,
+        seeds = [b"cliente", registro.key().as_ref(), id_cliente.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub cliente: Account<'info, Cliente>,
 }

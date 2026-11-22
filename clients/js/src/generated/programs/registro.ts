@@ -46,20 +46,24 @@ import {
   type VentaArgs,
 } from "../accounts";
 import {
+  getBajaClienteInstruction,
   getCambiarMontoInstruction,
   getCrearClienteInstruction,
   getCrearRegistroInstruction,
   getHacerDevolucionInstruction,
   getRegistrarVentaInstruction,
+  parseBajaClienteInstruction,
   parseCambiarMontoInstruction,
   parseCrearClienteInstruction,
   parseCrearRegistroInstruction,
   parseHacerDevolucionInstruction,
   parseRegistrarVentaInstruction,
+  type BajaClienteInput,
   type CambiarMontoInput,
   type CrearClienteInput,
   type CrearRegistroInput,
   type HacerDevolucionInput,
+  type ParsedBajaClienteInstruction,
   type ParsedCambiarMontoInstruction,
   type ParsedCrearClienteInstruction,
   type ParsedCrearRegistroInstruction,
@@ -69,7 +73,7 @@ import {
 } from "../instructions";
 
 export const REGISTRO_PROGRAM_ADDRESS =
-  "38oTMyvUTmqkBQeMiuok5F2mPjp9dVadWdBeQTDNmTUY" as Address<"38oTMyvUTmqkBQeMiuok5F2mPjp9dVadWdBeQTDNmTUY">;
+  "7dPZZDLYYy8uNb5mthSwwXrVaTDVUuLpJvi2JqFcYTb6" as Address<"7dPZZDLYYy8uNb5mthSwwXrVaTDVUuLpJvi2JqFcYTb6">;
 
 export enum RegistroAccount {
   Registro,
@@ -126,6 +130,7 @@ export enum RegistroInstruction {
   RegistrarVenta,
   HacerDevolucion,
   CambiarMonto,
+  BajaCliente,
 }
 
 export function identifyRegistroInstruction(
@@ -187,6 +192,17 @@ export function identifyRegistroInstruction(
   ) {
     return RegistroInstruction.CambiarMonto;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([177, 203, 168, 225, 12, 36, 199, 195]),
+      ),
+      0,
+    )
+  ) {
+    return RegistroInstruction.BajaCliente;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "registro" },
@@ -194,7 +210,7 @@ export function identifyRegistroInstruction(
 }
 
 export type ParsedRegistroInstruction<
-  TProgram extends string = "38oTMyvUTmqkBQeMiuok5F2mPjp9dVadWdBeQTDNmTUY",
+  TProgram extends string = "7dPZZDLYYy8uNb5mthSwwXrVaTDVUuLpJvi2JqFcYTb6",
 > =
   | ({
       instructionType: RegistroInstruction.CrearRegistro;
@@ -210,7 +226,10 @@ export type ParsedRegistroInstruction<
     } & ParsedHacerDevolucionInstruction<TProgram>)
   | ({
       instructionType: RegistroInstruction.CambiarMonto;
-    } & ParsedCambiarMontoInstruction<TProgram>);
+    } & ParsedCambiarMontoInstruction<TProgram>)
+  | ({
+      instructionType: RegistroInstruction.BajaCliente;
+    } & ParsedBajaClienteInstruction<TProgram>);
 
 export function parseRegistroInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -250,6 +269,13 @@ export function parseRegistroInstruction<TProgram extends string>(
       return {
         instructionType: RegistroInstruction.CambiarMonto,
         ...parseCambiarMontoInstruction(instruction),
+      };
+    }
+    case RegistroInstruction.BajaCliente: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: RegistroInstruction.BajaCliente,
+        ...parseBajaClienteInstruction(instruction),
       };
     }
     default:
@@ -301,6 +327,10 @@ export type RegistroPluginInstructions = {
     input: CambiarMontoInput,
     config?: { programAddress?: Address | HasAddress },
   ) => ReturnType<typeof getCambiarMontoInstruction> & SelfPlanAndSendFunctions;
+  bajaCliente: (
+    input: BajaClienteInput,
+    config?: { programAddress?: Address | HasAddress },
+  ) => ReturnType<typeof getBajaClienteInstruction> & SelfPlanAndSendFunctions;
 };
 
 export type RegistroPluginRequirements = ClientWithRpc<
@@ -359,6 +389,14 @@ export function registroProgram(
             addSelfPlanAndSendFunctions(
               client,
               getCambiarMontoInstruction(input, {
+                programAddress:
+                  instructionConfig?.programAddress ?? config.programAddress,
+              }),
+            ),
+          bajaCliente: (input, instructionConfig) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getBajaClienteInstruction(input, {
                 programAddress:
                   instructionConfig?.programAddress ?? config.programAddress,
               }),

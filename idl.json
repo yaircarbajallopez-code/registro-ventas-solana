@@ -1,9 +1,6 @@
 {
   "version": "0.1.0",
   "name": "registro",
-  "metadata": {
-    "address": "38oTMyvUTmqkBQeMiuok5F2mPjp9dVadWdBeQTDNmTUY"
-  },
   "instructions": [
     {
       "name": "crearRegistro",
@@ -183,6 +180,32 @@
           "type": "u32"
         }
       ]
+    },
+    {
+      "name": "bajaCliente",
+      "accounts": [
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registro",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cliente",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idCliente",
+          "type": "u16"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -269,6 +292,19 @@
       "code": 6001,
       "name": "NoSKU",
       "msg": "Error, la venta no esta en el historial del cliente"
+    },
+    {
+      "code": 6002,
+      "name": "ClienteConVentasActivas",
+      "msg": "Error, el cliente tiene ventas activas y no se puede dar de baja"
+    },
+    {
+      "code": 6003,
+      "name": "MontoInvalido",
+      "msg": "Error, el monto debe ser mayor a cero"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "7dPZZDLYYy8uNb5mthSwwXrVaTDVUuLpJvi2JqFcYTb6"
+  }
 }
