@@ -1,7 +1,9 @@
 # Registro de Ventas en Solana con PDAs
 
 **Participante para el certificado:** Yair Carbajal López
+
 **Correo del registro:** yaircarbajallopez@gmail.com
+
 **Repositorio:** https://github.com/yaircarbajallopez-code/registro-ventas-solana
 
 ## Ruta elegida
